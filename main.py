@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel, QPushBut
 from PyQt5.QtChart import QHorizontalStackedBarSeries, QHorizontalBarSeries, QChart, QChartView, QValueAxis, QBarCategoryAxis, QBarSet, QBarSeries
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot, QAbstractTableModel, QVariant
-from PyQt5.Qt import Qt, QColor
+from PyQt5.Qt import Qt, QColor, QStandardItem
 import PyQt5.QtCore as QtCore
 import sys
 import random
@@ -46,32 +46,21 @@ class TableModel(QAbstractTableModel):
             self.arraydata.reverse()
         self.emit(SIGNAL("layoutChanged()"))
 
-    def removwRows(self, position, rows=1, index=QtCore.QModelIndex()):
+    def removeRows(self, position, rows=1, index=QtCore.QModelIndex()):
         self.beginRemoveRows(QtCore.QModelIndex(), position, position + rows - 1)
         for _ in range(rows):
             del self.arraydata[position]
         self.endRemoveRows()
 
-    def addRow(self):
-        self.insertRows(self.rowCount(), 1)
+    def addRow(self, row):
+        self.arraydata.append(row)
+        self.layoutChanged.emit()
 
 class TableView(QTableWidget):
     def __init__(self, data, *args):
         QTableWidget.__init__(self, *args)
         self.setWindowTitle("Real Time Scheduler")
         self.data = data
-        self.setData()
-        self.resizeColumnsToContents()
-        self.resizeRowsToContents()
-
-    def setData(self): 
-        horHeaders = []
-        for n, key in enumerate(sorted(self.data.keys())):
-            horHeaders.append(key)
-            for m, item in enumerate(self.data[key]):
-                newitem = QTableWidgetItem(item)
-                self.setItem(m, n, newitem)
-        self.setHorizontalHeaderLabels(horHeaders)
 
 class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
@@ -80,7 +69,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle('Real Time Scheduler')
         self.setGeometry(0, 0, 1920, 1080)
 
-        colorList = [ 'green', 'red', 'blue', 'yellow' ]
+        self.colorList = [ 'green', 'red', 'blue', 'yellow', 'orange', 'black' ]
 
         data = [['A','10','10','30'],
                 ['B','20','20','30'],
@@ -125,23 +114,29 @@ class MainWindow(QMainWindow):
 
         h2lay = QVBoxLayout()
 
-        label2 = QLabel("PID - Process ID")
+        label1 = QLabel("PID - Process ID")
+        h2lay.addWidget(label1)
+
+        self.pidtext = QLineEdit()
+        h2lay.addWidget(self.pidtext)
+
+        label2 = QLabel("Pi - Priority")
         h2lay.addWidget(label2)
 
-        text2 = QLineEdit()
-        h2lay.addWidget(text2)
+        self.pitext = QLineEdit()
+        h2lay.addWidget(self.pitext)
 
         label3 = QLabel("Ci - Computing time")
         h2lay.addWidget(label3)
 
-        text3 = QLineEdit()
-        h2lay.addWidget(text3)
+        self.citext = QLineEdit()
+        h2lay.addWidget(self.citext)
 
-        label4 = QLabel("Di Deadline time")
+        label4 = QLabel("Di - Deadline time")
         h2lay.addWidget(label4)
 
-        text4 = QLineEdit()
-        h2lay.addWidget(text4)
+        self.ditext = QLineEdit()
+        h2lay.addWidget(self.ditext)
 
         addButton = QPushButton("Add process")
         addButton.clicked.connect(self.onClickedAdd)
@@ -154,7 +149,7 @@ class MainWindow(QMainWindow):
         h2lay.addWidget(deleteButton)
 
         addWidget = QWidget()
-        addWidget.setFixedHeight(280)
+        addWidget.setFixedHeight(320)
         addWidget.setFixedWidth(200)
         addWidget.setLayout(h2lay)
         layout.addWidget(addWidget, 3, 0)
@@ -167,45 +162,28 @@ class MainWindow(QMainWindow):
         clearButton.clicked.connect(self.onClickedClear)
         clearButton.setFixedHeight(40)
 
-        barSets = []
-        processColor = []
-        colorListIndex = 0
+        self.barSets = []
+        self.processColor = []
+        self.colorListIndex = 0
 
-        series = QHorizontalStackedBarSeries()
-
-        for i in range(0, self.model.rowCount(self)):
-            index = self.model.index(i, 0)
-            pid = self.model.data(index).value() 
-            index = self.model.index(i, 1)
-            pi = self.model.data(index).value() 
-            newBarSet = QBarSet(pid)
-            newBarSet.setColor(QColor(colorList[colorListIndex]))
-            processColor.append((pid, colorList[colorListIndex]))
-            colorListIndex += 1
-            newBarSet.append(int(pi))
-            barSets.append(newBarSet)
-            series.append(newBarSet)
-
-        chart = QChart()
-        chart.addSeries(series)
-        chart.setTitle('Scheduler')
-        chart.setAnimationOptions(QChart.SeriesAnimations)
+        self.chart = QChart()
+        self.chart.setTitle('Scheduler')
+        self.chart.setAnimationOptions(QChart.SeriesAnimations)
 
         months = ('Tasks')
 
-        axisX = QValueAxis()
-        axisX.setRange(0, 16)
+        self.axisX = QValueAxis()
 
         axisY = QBarCategoryAxis()
         axisY.append(months)
 
-        chart.addAxis(axisX, Qt.AlignBottom)
-        chart.addAxis(axisY, Qt.AlignLeft)
+        self.chart.addAxis(self.axisX, Qt.AlignBottom)
+        self.chart.addAxis(axisY, Qt.AlignLeft)
 
-        chart.legend().setVisible(True)
-        chart.legend().setAlignment(Qt.AlignBottom)
+        self.chart.legend().setVisible(True)
+        self.chart.legend().setAlignment(Qt.AlignBottom)
 
-        self.chartView = QChartView(chart)
+        self.chartView = QChartView(self.chart)
         self.chartView.setVisible(False)
 
         layout.addWidget(self.chartView, 6, 0)
@@ -218,6 +196,32 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(mainWidget)
 
     def onClickedRun(self):
+        endscale = 0
+        self.barSets.clear()
+        self.processColor.clear()
+        self.colorListIndex = 0 
+
+        self.chart.removeAllSeries()
+
+        series = QHorizontalStackedBarSeries()
+
+        for i in range(0, self.model.rowCount(self)):
+            index = self.model.index(i, 0)
+            pid = self.model.data(index).value() 
+            index = self.model.index(i, 1)
+            pi = self.model.data(index).value() 
+            newBarSet = QBarSet(pid)
+            newBarSet.setColor(QColor(self.colorList[self.colorListIndex]))
+            self.processColor.append((pid, self.colorList[self.colorListIndex]))
+            self.colorListIndex += 1
+            newBarSet.append(int(pi))
+            self.barSets.append(newBarSet)
+            series.append(newBarSet)
+            endscale += int(pi);
+
+        self.axisX.setRange(0, endscale)
+        self.chart.addSeries(series)
+
         self.chartView.setVisible(True)
 
     def onClickedClear(self):
@@ -227,7 +231,7 @@ class MainWindow(QMainWindow):
         self.radioButton = self.sender()
 
     def onClickedAdd(self):
-        self.model.addRow()
+        self.model.addRow([self.pidtext.text(), self.pitext.text(), self.citext.text(), self.ditext.text()])
 
     def onClickedDelete(self):
         indexes = self.table.selectionModel().selectedRows() 
