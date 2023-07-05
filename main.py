@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel, QPushBut
 from PyQt5.QtChart import QHorizontalStackedBarSeries, QHorizontalBarSeries, QChart, QChartView, QValueAxis, QBarCategoryAxis, QBarSet, QBarSeries
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot, QAbstractTableModel, QVariant
-from PyQt5.Qt import Qt, QColor, QStandardItem
+from PyQt5.Qt import Qt, QBrush, QColor, QPainter, QPainterPath, QPen, QPointF, QStandardItem
 import PyQt5.QtCore as QtCore
 import sys
 import random
@@ -61,6 +61,49 @@ class TableView(QTableWidget):
         QTableWidget.__init__(self, *args)
         self.setWindowTitle("Real Time Scheduler")
         self.data = data
+        
+class ChartView(QChartView):
+    _lines = None
+
+    @property
+    def lines(self):
+        return self._lines
+
+    @lines.setter
+    def lines(self, lines):
+        self._lines = lines
+        self.update()
+
+    def drawForeground(self, painter, rect):
+        if self.lines is None:
+            return
+
+        painter.save()
+
+        pen = QPen(QColor("black"))
+        pen.setWidth(3)
+        painter.setPen(pen)
+
+        r = self.chart().plotArea()
+
+        for label, x in self.lines:
+            p = self.chart().mapToPosition(QPointF(x, 0))
+
+            p1 = QPointF(p.x(), r.top() + r.top() * 0.6)
+            p2 = QPointF(p.x(), r.bottom())
+            painter.drawLine(p1, p2)
+
+            path = QPainterPath();
+            path.moveTo(p.x(), r.top() + r.top() * 0.3)
+            path.lineTo(p.x() - 5, r.top() + r.top() * 0.6)
+            path.lineTo(p.x() + 5, r.top() + r.top() * 0.6)
+
+            painter.fillPath(path, QBrush(QColor ("black")));
+
+            painter.drawText(int(p.x() - len(label) * 4), int(r.top() + r.top() * 0.3), label)
+
+        painter.restore()
+
 
 class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
@@ -71,9 +114,9 @@ class MainWindow(QMainWindow):
 
         self.colorList = [ 'green', 'red', 'blue', 'yellow', 'orange', 'black' ]
 
-        data = [['A','10','10','30'],
-                ['B','20','20','30'],
-                ['C','30','30','40']]
+        data = [['A','10','20','20'],
+                ['B','25','40','25'],
+                ['C','40','50','10']]
 
         header = ['PID','Pi','Ci','Di']
 
@@ -183,8 +226,8 @@ class MainWindow(QMainWindow):
         self.chart.legend().setVisible(True)
         self.chart.legend().setAlignment(Qt.AlignBottom)
 
-        self.chartView = QChartView(self.chart)
-        self.chartView.setVisible(False)
+        self.chartView = ChartView(self.chart)
+        self.chartView.setRenderHint(QPainter.Antialiasing)
 
         layout.addWidget(self.chartView, 6, 0)
         layout.addWidget(runButton, 7, 0)
@@ -192,6 +235,9 @@ class MainWindow(QMainWindow):
 
         mainWidget = QWidget()
         mainWidget.setLayout(layout)
+        
+        # chart.legend().setVisible(True)
+        # chart.legend().setAlignment(Qt.AlignBottom)
 
         self.setCentralWidget(mainWidget)
 
@@ -203,24 +249,25 @@ class MainWindow(QMainWindow):
 
         self.chart.removeAllSeries()
 
-        series = QHorizontalStackedBarSeries()
+        self.series = QHorizontalStackedBarSeries()
 
         for i in range(0, self.model.rowCount(self)):
             index = self.model.index(i, 0)
             pid = self.model.data(index).value() 
             index = self.model.index(i, 1)
-            pi = self.model.data(index).value() 
+            ci = self.model.data(index).value() 
             newBarSet = QBarSet(pid)
             newBarSet.setColor(QColor(self.colorList[self.colorListIndex]))
             self.processColor.append((pid, self.colorList[self.colorListIndex]))
             self.colorListIndex += 1
-            newBarSet.append(int(pi))
+            newBarSet.append(int(ci))
             self.barSets.append(newBarSet)
-            series.append(newBarSet)
-            endscale += int(pi);
+            self.series.append(newBarSet)
+            endscale += int(ci) + 100;
+            self.chartView.lines = [('A,B,C', 11.5), ('A', 50)]
 
         self.axisX.setRange(0, endscale)
-        self.chart.addSeries(series)
+        self.chart.addSeries(self.series)
 
         self.chartView.setVisible(True)
 
