@@ -236,13 +236,54 @@ class MainWindow(QMainWindow):
         mainWidget = QWidget()
         mainWidget.setLayout(layout)
         
-        # chart.legend().setVisible(True)
-        # chart.legend().setAlignment(Qt.AlignBottom)
-
         self.setCentralWidget(mainWidget)
 
+    def getVerticalLines(self, indexValue):
+        self.pidAndTime = []
+        self.verticalLines = []
+
+        # List all PID and times
+        for i in range(0, self.model.rowCount(self)):
+            self.pidAndTime.append((self.model.data(self.model.index(i, 0)).value(), int(self.model.data(self.model.index(i, indexValue)).value())))
+
+        # Create all lines to each PID
+        for i in range(0, self.model.rowCount(self)):
+            count = 1    
+            while True:
+                if (self.pidAndTime[i][1] * count) > (self.pidAndTime[self.model.rowCount(self) - 1][1] + 10):
+                    break
+
+                self.verticalLines.append((self.pidAndTime[i][0], (self.pidAndTime[i][1] * count)))
+                count += 1
+
+        # Concate each line
+        removeVerticalLines = []
+        for i in range(0, len(self.verticalLines) - 1):
+            for j in range(i+1, len(self.verticalLines)): 
+                if self.verticalLines[i][1] == self.verticalLines[j][1]:
+                    self.verticalLines[i] = (self.verticalLines[i][0] + ',' + self.verticalLines[j][0], self.verticalLines[i][1])
+                    if not j in removeVerticalLines:
+                        removeVerticalLines.append(j);
+
+        print(removeVerticalLines)
+        for i in range(0, len(removeVerticalLines)):
+            del self.verticalLines[removeVerticalLines[i]] 
+                    
+        return self.verticalLines
+
+    def EDF(self):
+        pass
+
+    def RM(self):
+        vl = self.getVerticalLines(1)
+        print(vl)
+        return vl
+
+    def DM(self):
+        pass
+
     def onClickedRun(self):
-        endscale = 0
+        endscale = 50
         self.barSets.clear()
         self.processColor.clear()
         self.colorListIndex = 0 
@@ -250,6 +291,10 @@ class MainWindow(QMainWindow):
         self.chart.removeAllSeries()
 
         self.series = QHorizontalStackedBarSeries()
+
+		# Switch
+        vl = self.RM()
+        self.chartView.lines = vl
 
         for i in range(0, self.model.rowCount(self)):
             index = self.model.index(i, 0)
@@ -263,8 +308,6 @@ class MainWindow(QMainWindow):
             newBarSet.append(int(ci))
             self.barSets.append(newBarSet)
             self.series.append(newBarSet)
-            endscale += int(ci) + 100;
-            self.chartView.lines = [('A,B,C', 11.5), ('A', 50)]
 
         self.axisX.setRange(0, endscale)
         self.chart.addSeries(self.series)
