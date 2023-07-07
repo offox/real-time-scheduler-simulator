@@ -122,29 +122,6 @@ class MainWindow(QMainWindow):
 
         layout = QGridLayout()
 
-        h1lay = QHBoxLayout()
-
-        radiobutton = QRadioButton("EDF - Earliest Deadline First")
-        radiobutton.setChecked(True)
-        radiobutton.scheduler = "EDF"
-        radiobutton.toggled.connect(self.onClicked)
-        h1lay.addWidget(radiobutton)
-
-        radiobutton = QRadioButton("RM - Rate Monotonic")
-        radiobutton.scheduler = "RM"
-        radiobutton.toggled.connect(self.onClicked)
-        h1lay.addWidget(radiobutton)
-
-        radiobutton = QRadioButton("DM - Deadline Monotonic")
-        radiobutton.scheduler = "DM"
-        radiobutton.toggled.connect(self.onClicked)
-        h1lay.addWidget(radiobutton)
-
-        radioButtonWidget = QWidget()
-        radioButtonWidget.setLayout(h1lay)
-
-        layout.addWidget(radioButtonWidget, 2, 0)
-
         tableLabel = QLabel("Processes table")
         layout.addWidget(tableLabel, 4, 0)
 
@@ -155,46 +132,44 @@ class MainWindow(QMainWindow):
         self.table.show()
         layout.addWidget(self.table, 5, 0)
 
-        h2lay = QVBoxLayout()
+        hlay = QHBoxLayout()
 
         label1 = QLabel("PID - Process ID")
-        h2lay.addWidget(label1)
+        hlay.addWidget(label1)
 
         self.pidtext = QLineEdit()
-        h2lay.addWidget(self.pidtext)
+        hlay.addWidget(self.pidtext)
 
         label2 = QLabel("Pi - Priority")
-        h2lay.addWidget(label2)
+        hlay.addWidget(label2)
 
         self.pitext = QLineEdit()
-        h2lay.addWidget(self.pitext)
+        hlay.addWidget(self.pitext)
 
         label3 = QLabel("Ci - Computing time")
-        h2lay.addWidget(label3)
+        hlay.addWidget(label3)
 
         self.citext = QLineEdit()
-        h2lay.addWidget(self.citext)
+        hlay.addWidget(self.citext)
 
         label4 = QLabel("Di - Deadline time")
-        h2lay.addWidget(label4)
+        hlay.addWidget(label4)
 
         self.ditext = QLineEdit()
-        h2lay.addWidget(self.ditext)
+        hlay.addWidget(self.ditext)
 
         addButton = QPushButton("Add process")
         addButton.clicked.connect(self.onClickedAdd)
         addButton.setFixedHeight(40)
-        h2lay.addWidget(addButton)
+        hlay.addWidget(addButton)
 
         deleteButton = QPushButton("Delete process")
         deleteButton.clicked.connect(self.onClickedDelete)
         deleteButton.setFixedHeight(40)
-        h2lay.addWidget(deleteButton)
+        hlay.addWidget(deleteButton)
 
         addWidget = QWidget()
-        addWidget.setFixedHeight(320)
-        addWidget.setFixedWidth(200)
-        addWidget.setLayout(h2lay)
+        addWidget.setLayout(hlay)
         layout.addWidget(addWidget, 3, 0)
 
         runButton = QPushButton("Run")    
@@ -213,7 +188,7 @@ class MainWindow(QMainWindow):
         self.chart.setTitle('Scheduler')
         self.chart.setAnimationOptions(QChart.SeriesAnimations)
 
-        months = ('Tasks')
+        months = ('Tasks EDF', 'Task RM', 'Task DM')
 
         self.axisX = QValueAxis()
 
@@ -290,9 +265,14 @@ class MainWindow(QMainWindow):
 
         self.chart.removeAllSeries()
 
-        self.series = QHorizontalStackedBarSeries()
+        self.series = []
 
-		# Switch
+        #for i in range(0, 2):
+        self.series.append(QHorizontalStackedBarSeries())
+        self.series.append(QHorizontalStackedBarSeries())
+        self.series.append(QHorizontalStackedBarSeries())
+
+        # Switch
         vl = self.RM()
         self.chartView.lines = vl
 
@@ -307,10 +287,14 @@ class MainWindow(QMainWindow):
             self.colorListIndex += 1
             newBarSet.append(int(ci))
             self.barSets.append(newBarSet)
-            self.series.append(newBarSet)
+            self.series[0].append(newBarSet)
+            self.series[1].append(newBarSet)
+            self.series[2].append(newBarSet)
 
         self.axisX.setRange(0, endscale)
-        self.chart.addSeries(self.series)
+        self.chart.addSeries(self.series[0])
+        self.chart.addSeries(self.series[1])
+        self.chart.addSeries(self.series[2])
 
         self.chartView.setVisible(True)
 
