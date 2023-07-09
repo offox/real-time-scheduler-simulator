@@ -115,10 +115,10 @@ class MainWindow(QMainWindow):
         self.colorList = [ 'green', 'red', 'blue', 'yellow', 'orange', 'black' ]
 
         data = [['A','10','20','20'],
-                ['B','25','40','25'],
-                ['C','40','50','10']]
+                ['B','25','50','25'],
+                ['C','30','60','10']]
 
-        header = ['PID','Pi','Ci','Di']
+        header = ['PID','Ci','Di', 'Pi']
 
         layout = QGridLayout()
 
@@ -180,7 +180,6 @@ class MainWindow(QMainWindow):
         clearButton.clicked.connect(self.onClickedClear)
         clearButton.setFixedHeight(40)
 
-        self.barSets = []
         self.processColor = []
         self.colorListIndex = 0
 
@@ -247,49 +246,82 @@ class MainWindow(QMainWindow):
         return self.verticalLines
 
     def EDF(self):
-        pass
+        pidAndCi = []
+        pidAndCiTemp = []
+        barSets = []
 
-    def RM(self):
-        vl = self.getVerticalLines(1)
-        print(vl)
-        return vl
-
-    def DM(self):
-        pass
-
-    def onClickedRun(self):
-        endscale = 50
-        self.barSets.clear()
-        self.processColor.clear()
         self.colorListIndex = 0 
 
-        self.chart.removeAllSeries()
+        for i in range(0, self.model.rowCount(self)):
+            index = self.model.index(i, 0)
+            pid = self.model.data(index).value() 
+            index = self.model.index(i, 2)
+            ci = self.model.data(index).value() 
+            pidAndCi.append((pid, ci)) 
 
-        self.series = []
+        stopPoint = 0
 
-        #for i in range(0, 2):
-        self.series.append(QHorizontalStackedBarSeries())
-        self.series.append(QHorizontalStackedBarSeries())
-        self.series.append(QHorizontalStackedBarSeries())
+        while(True):
+            for i in range(0, len(pidAndCi)):
+                newBarSet = QBarSet(pidAndCi[i][0])
+                newBarSet.setColor(QColor(self.colorList[self.colorListIndex]))
+                self.processColor.append((pid, self.colorList[self.colorListIndex]))
+                self.colorListIndex += 1
+                newBarSet.append(int(pidAndCi[i][1]))
+                barSets.append(newBarSet)
+            break
 
-        # Switch
-        vl = self.RM()
-        self.chartView.lines = vl
+        return barSets
+
+    def RM(self):
+        pidAndCi = []
+        pidAndCiTemp = []
+        barSets = []
+
+        self.colorListIndex = 0 
 
         for i in range(0, self.model.rowCount(self)):
             index = self.model.index(i, 0)
             pid = self.model.data(index).value() 
             index = self.model.index(i, 1)
             ci = self.model.data(index).value() 
-            newBarSet = QBarSet(pid)
-            newBarSet.setColor(QColor(self.colorList[self.colorListIndex]))
-            self.processColor.append((pid, self.colorList[self.colorListIndex]))
-            self.colorListIndex += 1
-            newBarSet.append(int(ci))
-            self.barSets.append(newBarSet)
-            self.series[0].append(newBarSet)
-            self.series[1].append(newBarSet)
-            self.series[2].append(newBarSet)
+            pidAndCi.append((pid, ci)) 
+
+        stopPoint = 0
+
+        while(True):
+            for i in range(0, len(pidAndCi)):
+                newBarSet = QBarSet(pidAndCi[i][0])
+                newBarSet.setColor(QColor(self.colorList[self.colorListIndex]))
+                self.processColor.append((pid, self.colorList[self.colorListIndex]))
+                self.colorListIndex += 1
+                newBarSet.append(int(pidAndCi[i][1]))
+                barSets.append(newBarSet)
+            break
+
+        return barSets
+
+    def DM(self):
+        pass
+
+    def onClickedRun(self):
+        endscale = 50
+        self.processColor.clear()
+
+        self.chart.removeAllSeries()
+
+        self.series = []
+
+        for i in range(0, 3):
+            self.series.append(QHorizontalStackedBarSeries())
+
+        # Switch
+        vl = self.getVerticalLines(1)
+        self.chartView.lines = vl
+
+        self.series[0].append(self.EDF())
+        self.series[1].append(self.RM())
+        self.series[2].append(self.RM())
 
         self.axisX.setRange(0, endscale)
         self.chart.addSeries(self.series[0])
